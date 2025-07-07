@@ -1,4 +1,3 @@
-// src/auth/auth.service.ts
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/common/prisma-service/prisma.service';
 import { EmailService } from 'src/common/email/email.service';
@@ -43,7 +42,7 @@ export class AuthService {
       data: { emailVerified: true, emailVerificationToken: null }
     });
     await this.emailService.sendWelcomeEmail(user.email);
-    const halfUser = { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, emailVerified: true };
+    const halfUser = { id: user.id, email: user.email, fullname: user.name, emailVerified: true };
     return { user: halfUser }; // Return user info
   }
 
@@ -63,14 +62,14 @@ export class AuthService {
       throw new BadRequestException('Invalid credentials.');
     if (!user.emailVerified) throw new BadRequestException('Email not verified.');
     if (user.status !== 'ACTIVE') throw new BadRequestException('Account is not active.');
-    const payload = { sub: user.id, username: `${user.firstName} ${user.lastName}`, email: user.email, role: user?.role };
+    const payload = { sub: user.id, fullname: user.name, email: user.email, role: user?.role };
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
-    await this.prismaService.user.update({
-      where: { email },
-      data: { refreshToken }
-    });
-    const halfUser = { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, emailVerified: user.emailVerified };
+    // await this.prismaService.user.update({
+    //   where: { email },
+    //   data: { refreshToken }
+    // });
+    const halfUser = { id: user.id, email: user.email, fullname: user, emailVerified: user.emailVerified };
     return { user: halfUser, accessToken, refreshToken }; // Return the authenticated user along with tokens
   }
 
