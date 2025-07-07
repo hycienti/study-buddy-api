@@ -20,8 +20,7 @@ export class AuthService {
       data: {
         email: createAuthDto.email,
         password: hashedPassword,
-        firstName: createAuthDto.firstName,
-        lastName: createAuthDto.lastName,
+        name: createAuthDto.fullname,
         accountType: createAuthDto.userAccountType,
         emailVerificationToken,
         ...(createAuthDto.role && { role: createAuthDto.role })

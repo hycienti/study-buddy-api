@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Role } from '@prisma/client';
+// import { Role } from '@prisma/client';
 
 export class CreateAuthAdminDto {
     @ApiProperty({ type: String, description: 'User email address' })
@@ -14,6 +14,6 @@ export class CreateAuthAdminDto {
     @ApiProperty({ type: String, description: 'User last name' })
     lastName: string;
 
-    @ApiProperty({ enum: Role, description: 'Type of user account' })
-    role: Role;
+    // @ApiProperty({ enum: Role, description: 'Type of user account' })
+    // role: Role;
 }
