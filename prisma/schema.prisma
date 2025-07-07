@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  name          String
+  role          UserRole
+  bio           String?
+  avatarUrl     String?
+  skills        String[]
+  modules       ModuleAssignment[]
+  availability  Availability[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Relations
+  sessionsAsBuddy   Session[]  @relation("BuddySessions")
+  sessionsAsLearner Session[]  @relation("LearnerSessions")
+  ticketsCreated    Ticket[]   @relation("TicketsByCreator")
+  ticketsClaimed    Ticket[]   @relation("TicketsClaimedBy")
+  notifications     Notification[]
+  ticketComments    TicketComment[]
+}
+
+model ModuleAssignment {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  module    String   // e.g. "Data & Decisions", "Software Dev"
+  topics    String[] // e.g. ["Data Cleaning", "SQL"]
+}
+
+model Availability {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  dayOfWeek Int      // 0 (Sunday) - 6 (Saturday)
+  startTime String   // e.g. "14:00"
+  endTime   String   // e.g. "16:30"
+}
+
+model Session {
+  id          String   @id @default(uuid())
+  buddy       User     @relation("BuddySessions", fields: [buddyId], references: [id])
+  buddyId     String
+  learner     User     @relation("LearnerSessions", fields: [learnerId], references: [id])
+  learnerId   String
+  module      String
+  topic       String
+  date        DateTime
+  meetingLink String
+  status      SessionStatus @default(PENDING)
+  feedback    String?
+  createdAt   DateTime      @default(now())
+}
+
+model Ticket {
+  id             String   @id @default(uuid())
+  createdBy      User     @relation("TicketsByCreator", fields: [createdById], references: [id])
+  createdById    String
+  claimedBy      User?    @relation("TicketsClaimedBy", fields: [claimedById], references: [id])
+  claimedById    String?
+  module         String
+  topic          String
+  description    String
+  attachments    String[]  // Array of file URLs
+  preferredTimes String[]
+  status         TicketStatus @default(OPEN)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  comments       TicketComment[]
+}
+
+model TicketComment {
+  id        String   @id @default(uuid())
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  ticketId  String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  message   String
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  type      NotificationType
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+enum UserRole {
+  BUDDY
+  LEARNER
+  BOTH
+}
+
+enum SessionStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum TicketStatus {
+  OPEN
+  CLAIMED
+  RESOLVED
+  CLOSED
+}
+
+enum NotificationType {
+  SESSION_BOOKED
+  SESSION_UPDATED
+  TICKET_RAISED
+  TICKET_CLAIMED
+  TICKET_COMMENT
+  GENERAL
+}
