@@ -14,6 +14,7 @@ import { SessionModule } from './session/session.module';
 import { TicketModule } from './ticket/ticket.module';
 import { StatsModule } from './stats/stats.module';
 import { NotificationModule } from './common/notification/notification.module';
+import { GoogleCalendarModule } from './common/google-calendar/google-calendar.module';
 import { TasksService } from './common/tasks/tasks.service';
 
 
@@ -29,6 +30,7 @@ import { TasksService } from './common/tasks/tasks.service';
     TicketModule,
     StatsModule,
     NotificationModule,
+    GoogleCalendarModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService, ResponseService, TasksService],
