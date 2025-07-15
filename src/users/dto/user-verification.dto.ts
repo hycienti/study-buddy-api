@@ -1,15 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
-import { UserVerificationStatus } from '@prisma/client';
+import { IsBoolean, IsOptional, IsString } from 'class-validator';
 
 export class UserVerificationDto {
-    @ApiProperty({ description: 'ID of the document verification status is being updated', required: true })
-    @IsInt()
-    documentId: number;
-
-    @ApiProperty({ enum: UserVerificationStatus, required: true, description: 'New verification status for the document' })
-    @IsEnum(UserVerificationStatus)
-    status: UserVerificationStatus;
+    @ApiProperty({ description: 'Whether to approve the user', required: true })
+    @IsBoolean()
+    isApproved: boolean;
 
     @ApiPropertyOptional({ type: String, description: 'Reason for rejection, if any' })
     @IsOptional()

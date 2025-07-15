@@ -16,16 +16,17 @@ model User {
   bio          String?
   avatarUrl    String?
   skills       String[]
-  modules      ModuleAssignment[]
   availability Availability[]
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
+  schoolName String?
+  studyYear  String?
+  major      String?
+
   emailVerified          Boolean   @default(false)
   phoneVerified          Boolean   @default(false)
   emailVerificationToken String?   @unique
-  phoneVerificationCode  String?
-  passwordResetToken     String?   @unique
   passwordResetExpires   DateTime?
   emailVerifiedAt        DateTime?
   phoneVerifiedAt        DateTime?
@@ -48,13 +49,13 @@ enum UserStatus {
   DELETED
 }
 
-model ModuleAssignment {
-  id     String   @id @default(uuid())
-  user   User     @relation(fields: [userId], references: [id])
-  userId String
-  module String // e.g. "Data & Decisions", "Software Dev"
-  topics String[] // e.g. ["Data Cleaning", "SQL"]
-}
+// model ModuleAssignment {
+//   id     String   @id @default(uuid())
+//   user   User     @relation(fields: [userId], references: [id])
+//   userId String
+//   module String // e.g. "Data & Decisions", "Software Dev"
+//   topics String[] // e.g. ["Data Cleaning", "SQL"]
+// }
 
 model Availability {
   id        String @id @default(uuid())

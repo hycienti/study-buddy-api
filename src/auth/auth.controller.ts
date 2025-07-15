@@ -110,24 +110,5 @@ export class AuthController {
     }
   }
 
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
-  @Roles('ADMIN')
-  @Post("admin/create/user")
-  @ApiOperation({ summary: 'Register a new user (admin-level access required)' })
-  @ApiResponse({ status: 201, description: 'User successfully registered.' })
-  @ApiResponse({ status: 400, description: 'Invalid input.' })
-  @ApiBody({ type: CreateAuthAdminDto })
-  async registerAdminUser(@Body() createAuthDto: CreateAuthAdminDto) {
-    // if (createAuthDto?.role === "ADMIN") {
-    //   return this.responseService.errorResponse({ status: 403, response: "You are not allowed to create a user with this kind of role" });
-    // }
-    try {
-      const authObject = { ...createAuthDto, email: createAuthDto.email.toLowerCase() };
-      const user = await this.authService.createAccount(authObject);
-      return this.responseService.successResponse(user);
-    } catch (error) {
-      console.error('Error during registration:', error);
-      return this.responseService.errorResponse(error);
-    }
-  }
+
 }

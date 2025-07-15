@@ -1,17 +1,24 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, HttpStatus, Query } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { ResponseService } from 'src/common/response/response.service';
-import { UserAddressDto } from './dto/user-address-dto';
-import { UserVerificationDocumentDto } from './dto/user-verification-document-dto';
-import { UserStatus } from '@prisma/client';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 
+@ApiTags('user')
 @Controller('user')
 @UseGuards(JwtAuthGuard)
 export class UserController {
-  constructor(private readonly userService: UserService, private readonly responseService: ResponseService) { }
+  constructor(
+    private readonly userService: UserService, 
+    private readonly responseService: ResponseService
+  ) {}
+
   @Get('profile')
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'Return user profile.' })
+  @ApiBearerAuth()
   async getProfile(@Request() req) {
     const userId = req.user.id;
     if (!userId) {
@@ -31,8 +38,11 @@ export class UserController {
     return this.responseService.successResponse({ ...user, password: undefined });
   }
 
-  @Post('verification-documents')
-  async addUserVerificationDocument(@Request() req, @Body() documentData: UserVerificationDocumentDto) {
+  @Get('upcoming-sessions')
+  @ApiOperation({ summary: 'Get upcoming sessions for current user' })
+  @ApiResponse({ status: 200, description: 'Return upcoming sessions.' })
+  @ApiBearerAuth()
+  async getUpcomingSessions(@Request() req) {
     const userId = req.user.id;
     if (!userId) {
       return this.responseService.errorResponse({
@@ -40,13 +50,21 @@ export class UserController {
         response: 'Unauthorized'
       });
     }
-    const document = await this.userService.addUserVerificationDocument(userId, documentData);
-    return this.responseService.successResponse(document);
+    const sessions = await this.userService.getUserUpcomingSessions(userId);
+    return this.responseService.successResponse(sessions);
   }
 
-  //get user address
-  @Get('user-address')
-  async getUserAddress(@Request() req) {
+  @Get('recent-tickets')
+  @ApiOperation({ summary: 'Get recent tickets for current user' })
+  @ApiResponse({ status: 200, description: 'Return recent tickets.' })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Items per page' })
+  @ApiBearerAuth()
+  async getRecentTickets(
+    @Request() req,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
     const userId = req.user.id;
     if (!userId) {
       return this.responseService.errorResponse({
@@ -54,19 +72,39 @@ export class UserController {
         response: 'Unauthorized'
       });
     }
-    const address = await this.userService.getUserAddress(userId);
-    if (!address) {
+    const tickets = await this.userService.getUserRecentTickets(userId, page, limit);
+    return this.responseService.successResponse(tickets);
+  }
+
+  @Get('skills')
+  @ApiOperation({ summary: 'Get current user skills' })
+  @ApiResponse({ status: 200, description: 'Return user skills.' })
+  @ApiBearerAuth()
+  async getMySkills(@Request() req) {
+    const userId = req.user.id;
+    if (!userId) {
+      return this.responseService.errorResponse({
+        status: HttpStatus.UNAUTHORIZED,
+        response: 'Unauthorized'
+      });
+    }
+    
+    try {
+      const userSkills = await this.userService.getUserSkills(userId);
+      return this.responseService.successResponse(userSkills);
+    } catch (error) {
       return this.responseService.errorResponse({
         status: HttpStatus.NOT_FOUND,
-        response: 'Address not found'
+        response: error.message
       });
     }
-    return this.responseService.successResponse(address);
   }
 
-  //get use documents
-  @Get('user-documents')
-  async getUserVerificationDocuments(@Request() req) {
+  @Post('skills')
+  @ApiOperation({ summary: 'Add skills to current user profile' })
+  @ApiResponse({ status: 200, description: 'Skills added successfully.' })
+  @ApiBearerAuth()
+  async addSkills(@Request() req, @Body() addSkillsDto: { skills: string[] }) {
     const userId = req.user.id;
     if (!userId) {
       return this.responseService.errorResponse({
@@ -74,20 +112,23 @@ export class UserController {
         response: 'Unauthorized'
       });
     }
-    const documents = await this.userService.getUserVerificationDocuments(userId);
-    if (!documents || documents.length === 0) {
+    
+    try {
+      const updatedUser = await this.userService.addSkills(userId, addSkillsDto.skills);
+      return this.responseService.successResponse(updatedUser);
+    } catch (error) {
       return this.responseService.errorResponse({
-        status: HttpStatus.NOT_FOUND,
-        response: 'No verification documents found'
+        status: HttpStatus.BAD_REQUEST,
+        response: error.message
       });
     }
-    console.log(documents)
-
-    return this.responseService.successResponse(documents);
   }
 
-  @Post('address')
-  async addUserAddress(@Request() req, @Body() addressData: UserAddressDto) {
+  @Patch('skills')
+  @ApiOperation({ summary: 'Update all skills for current user' })
+  @ApiResponse({ status: 200, description: 'Skills updated successfully.' })
+  @ApiBearerAuth()
+  async updateSkills(@Request() req, @Body() updateSkillsDto: { skills: string[] }) {
     const userId = req.user.id;
     if (!userId) {
       return this.responseService.errorResponse({
@@ -95,34 +136,85 @@ export class UserController {
         response: 'Unauthorized'
       });
     }
-    const address = await this.userService.addUserAddress(userId, addressData);
-    return this.responseService.successResponse(address);
+    
+    try {
+      const updatedUser = await this.userService.updateSkills(userId, updateSkillsDto.skills);
+      return this.responseService.successResponse(updatedUser);
+    } catch (error) {
+      return this.responseService.errorResponse({
+        status: HttpStatus.BAD_REQUEST,
+        response: error.message
+      });
+    }
   }
+
+  @Delete('skills')
+  @ApiOperation({ summary: 'Remove specific skills from current user profile' })
+  @ApiResponse({ status: 200, description: 'Skills removed successfully.' })
+  @ApiBearerAuth()
+  async removeSkills(@Request() req, @Body() removeSkillsDto: { skills: string[] }) {
+    const userId = req.user.id;
+    if (!userId) {
+      return this.responseService.errorResponse({
+        status: HttpStatus.UNAUTHORIZED,
+        response: 'Unauthorized'
+      });
+    }
+    
+    try {
+      const updatedUser = await this.userService.removeSkills(userId, removeSkillsDto.skills);
+      return this.responseService.successResponse(updatedUser);
+    } catch (error) {
+      return this.responseService.errorResponse({
+        status: HttpStatus.BAD_REQUEST,
+        response: error.message
+      });
+    }
+  }
+
   @Get(':id')
+  @ApiOperation({ summary: 'Get a user by id' })
+  @ApiResponse({ status: 200, description: 'Return the user.' })
+  @ApiBearerAuth()
   findOne(@Param('id') id: string) {
     return this.userService.findOne(id);
   }
+
+  @Get(':id/upcoming-sessions')
+  @ApiOperation({ summary: 'Get upcoming sessions for a specific user' })
+  @ApiResponse({ status: 200, description: 'Return upcoming sessions.' })
+  @ApiBearerAuth()
+  getUpcomingSessionsForUser(@Param('id') id: string) {
+    return this.userService.getUserUpcomingSessions(id);
+  }
+
+  @Get(':id/recent-tickets')
+  @ApiOperation({ summary: 'Get recent tickets for a specific user' })
+  @ApiResponse({ status: 200, description: 'Return recent tickets.' })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Items per page' })
+  @ApiBearerAuth()
+  getRecentTicketsForUser(
+    @Param('id') id: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return this.userService.getUserRecentTickets(id, page, limit);
+  }
+
   @Patch(':id')
+  @ApiOperation({ summary: 'Update a user' })
+  @ApiResponse({ status: 200, description: 'User updated successfully.' })
+  @ApiBearerAuth()
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.userService.update(id, updateUserDto);
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Delete a user' })
+  @ApiResponse({ status: 200, description: 'User deleted successfully.' })
+  @ApiBearerAuth()
   remove(@Param('id') id: string, @Request() req) {
     return this.userService.remove(id, req.user.id);
-  }
-
-  @Patch(":userid/change-account-status")
-  async changeAccountStatus(@Param("userid") userId: string, @Body("status") status: UserStatus, @Request() req) {
-    try {
-      const result = await this.userService.changeAccountStatus(userId, status, req.user.id);
-      if (!result) {
-        return this.responseService.errorResponse({ response: 'User not found', status: 404 });
-      }
-      return this.responseService.successResponse(result);
-    } catch (error) {
-      return this.responseService.errorResponse({ response: error.message, status: 400 });
-
-    }
   }
 }

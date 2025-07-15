@@ -3,6 +3,8 @@ import { PrismaService } from 'src/common/prisma-service/prisma.service';
 import { EmailService } from 'src/common/email/email.service';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { CreateAuthDto } from './dto/create-auth.dto';
+import { UserRole } from '@prisma/client';
 
 
 @Injectable()
@@ -12,8 +14,7 @@ export class AuthService {
     private readonly emailService: EmailService,
     private readonly jwtService: JwtService
   ) { }
-
-  async createAccount(createAuthDto) {
+  async createAccount(createAuthDto: CreateAuthDto) {
     const hashedPassword = await bcrypt.hash(createAuthDto.password, 10);
     const emailVerificationToken = this.generateRandomCode();
     const user = await this.prismaService.user.create({
@@ -21,14 +22,26 @@ export class AuthService {
         email: createAuthDto.email,
         password: hashedPassword,
         name: createAuthDto.fullname,
-        accountType: createAuthDto.userAccountType,
+        schoolName: createAuthDto.schoolName,
+        studyYear: createAuthDto.studyYear,
+        major: createAuthDto.major,
         emailVerificationToken,
-        ...(createAuthDto.role && { role: createAuthDto.role })
+        role: UserRole.BOTH,
+        availability: createAuthDto.availabilities
+          ? {
+              create: createAuthDto.availabilities.map(a => ({
+                id: a.id,
+                dayOfWeek: a.dayOfWeek,
+                startTime: a.startTime,
+                endTime: a.endTime,
+              })),
+            }
+          : undefined,
       }
     });
     const sentEmail = await this.emailService.sendVerificationEmail(user.email, emailVerificationToken);
     console.log('Email sent:', sentEmail);
-    return user; // Return user directly
+    return user;
   }
 
   async confirmRegistration(email, token) {

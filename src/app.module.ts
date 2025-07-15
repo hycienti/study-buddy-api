@@ -8,16 +8,29 @@ import { ResponseService } from './common/response/response.service';
 import { UsersModule } from './users/users.module';
 import { UserModule } from './user/user.module';
 import { ConfigModule } from '@nestjs/config';
-import { TravelsModule } from './travels/travels.module';
-import { SenderRequestModule } from './sender-request/sender-request.module';
-import { PaymentModule } from './payment/payment.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { StudyBuddyModule } from './study-buddy/study-buddy.module';
+import { SessionModule } from './session/session.module';
+import { TicketModule } from './ticket/ticket.module';
 import { StatsModule } from './stats/stats.module';
+import { NotificationModule } from './common/notification/notification.module';
+import { TasksService } from './common/tasks/tasks.service';
 
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), AuthModule, UsersModule, UserModule, TravelsModule, SenderRequestModule, PaymentModule, StatsModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
+    AuthModule, 
+    UsersModule, 
+    UserModule, 
+    StudyBuddyModule,
+    SessionModule,
+    TicketModule,
+    StatsModule,
+    NotificationModule,
+  ],
   controllers: [AppController],
-  // providers: [AppService, PrismaService, EmailService, ResponseService],
-  providers: [AppService, PrismaService, ResponseService],
+  providers: [AppService, PrismaService, ResponseService, TasksService],
 })
 export class AppModule {}
