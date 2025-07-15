@@ -23,7 +23,145 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Study Buddy API - A comprehensive platform for connecting students with study buddies, managing study sessions, and providing help through a ticket system.
+
+### Key Features
+
+- **Study Buddy Matching**: Connect learners with experienced students based on skills and availability
+- **Session Management**: Book, confirm, and manage study sessions with integrated Google Calendar and Meet
+- **Real Google Calendar Integration**: Automatic calendar event creation with Google Meet links
+- **Ticket System**: Create and manage help requests with file attachments and comments
+- **User Management**: Comprehensive user profiles with skills, availability, and verification
+- **Notification System**: In-app notifications for all platform activities
+- **Advanced Analytics**: Track session statistics, user performance, and platform usage
+
+### Google Calendar Integration
+
+This application features **real Google Calendar API integration** with:
+- Automatic calendar event creation for study sessions
+- Google Meet link generation for each session
+- Participant email management and invitations
+- Event updates when session details change
+- Event deletion when sessions are cancelled
+- Support for both Service Account and OAuth2 authentication
+
+For setup instructions, see [GOOGLE_CALENDAR_SETUP.md](./GOOGLE_CALENDAR_SETUP.md)
+
+## API Documentation
+
+### Authentication
+All endpoints require JWT authentication except for registration and login.
+```
+Authorization: Bearer <jwt-token>
+```
+
+### Core Modules
+
+#### 1. Study Buddy Module (`/study-buddies`)
+- **GET /study-buddies** - Search for available study buddies with skills and availability filters
+- **GET /study-buddies/my-profile** - Get current user's buddy profile
+- **POST /study-buddies** - Register as a study buddy
+- **PATCH /study-buddies/:id** - Update study buddy profile
+
+#### 2. Session Management (`/sessions`)
+- **POST /sessions** - Book a new study session (automatically creates Google Calendar event)
+- **GET /sessions** - Get all sessions with advanced filtering
+- **GET /sessions/my-sessions** - Get current user's sessions
+- **GET /sessions/:id** - Get session details
+- **PATCH /sessions/:id** - Update session (confirm, cancel, add feedback)
+- **DELETE /sessions/:id** - Cancel session (deletes calendar event)
+- **POST /sessions/sync-calendar** - Sync calendar events for existing sessions
+
+#### 3. Ticket System (`/tickets`)
+- **POST /tickets** - Create a help ticket with attachments
+- **GET /tickets** - Get all tickets with filtering
+- **GET /tickets/my-tickets** - Get current user's tickets
+- **GET /tickets/:id** - Get ticket details
+- **PATCH /tickets/:id** - Update ticket or claim ticket
+- **POST /tickets/:id/comments** - Add comment to ticket
+
+#### 4. User Management (`/users`)
+- **GET /users/profile** - Get current user profile
+- **PATCH /users/profile** - Update user profile
+- **POST /users/skills** - Add skills to user profile
+- **DELETE /users/skills/:skill** - Remove skill from profile
+- **GET /users/verification-document** - Get verification document
+- **POST /users/verification-document** - Upload verification document
+
+#### 5. Statistics (`/stats`)
+- **GET /stats/overview** - Platform overview statistics
+- **GET /stats/sessions** - Session-related statistics
+- **GET /stats/tickets** - Ticket-related statistics
+- **GET /stats/users** - User-related statistics
+- **GET /stats/upcoming-sessions** - Upcoming sessions for current user
+- **GET /stats/recent-tickets** - Recent tickets for current user
+
+#### 6. Notifications (`/notifications`)
+- **GET /notifications** - Get user notifications with pagination
+- **PATCH /notifications/:id/read** - Mark notification as read
+- **PATCH /notifications/mark-all-read** - Mark all notifications as read
+- **DELETE /notifications/:id** - Delete notification
+
+#### 7. Google Calendar Integration (`/google-calendar`)
+- **GET /google-calendar/health** - Check Google Calendar API connection
+- **GET /google-calendar/upcoming** - Get upcoming calendar events
+
+### Google Calendar Features
+
+When sessions are created, the system automatically:
+1. Creates a Google Calendar event with session details
+2. Generates a Google Meet link for the session
+3. Adds both participants (buddy and learner) to the event
+4. Sends calendar invitations to both participants
+5. Sets up reminders (24 hours and 15 minutes before)
+
+When sessions are updated:
+- Calendar events are automatically updated with new details
+- Participants receive updated invitations
+
+When sessions are cancelled:
+- Calendar events are automatically deleted
+- Participants receive cancellation notifications
+
+### Environment Configuration
+
+The application requires these environment variables:
+
+```env
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/study_buddy_db"
+
+# JWT
+JWT_SECRET="your-jwt-secret"
+
+# Google Calendar API
+GOOGLE_CALENDAR_TYPE="service_account"
+GOOGLE_CALENDAR_PROJECT_ID="your-project-id"
+GOOGLE_CALENDAR_CLIENT_EMAIL="service-account@project.iam.gserviceaccount.com"
+GOOGLE_CALENDAR_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+# ... other Google Calendar credentials
+
+# AWS S3 (for file uploads)
+AWS_ACCESS_KEY_ID="your-access-key"
+AWS_SECRET_ACCESS_KEY="your-secret-key"
+AWS_REGION="us-west-2"
+AWS_S3_BUCKET_NAME="your-bucket"
+
+# Email (Resend)
+RESEND_API_KEY="your-resend-api-key"
+```
+
+See `.env.example` for the complete configuration template.
+
+## Database Migration
+
+After setting up the environment variables, run the database migration:
+
+```bash
+npx prisma migrate dev --name init
+```
+
+This will create all necessary tables including the new calendar event tracking fields.
 
 ## Project setup
 
@@ -410,102 +548,32 @@ Your application likely needs certain environment variables in production – mo
     value = "false"
   }
   ```
-  The above would install devDependencies on EB (if needed for Prisma CLI). Alternatively, skip `NPM_USE_PRODUCTION` if you move `prisma` to regular dependencies (preferred) or generate Prisma client during build and include it.
+  The above would install devDependencies on EB (if needed for Prisma CLI). You should still include the `.npmrc` `unsafe-perm` setting.
 
-## Step 8: Prepare Prisma for Deployment (Binary Targets and Generate)
+## Troubleshooting Common Issues
 
-Prisma requires a bit of extra care when deploying to a different environment (your local dev vs AWS Linux). Two main considerations are the **Prisma Client binary** and ensuring the client is generated on the host.
+1. **Application not starting**: Check the logs in Elastic Beanstalk > Logs. Common issues:
+   - Port configuration: Ensure your app listens on the port provided by Elastic Beanstalk (usually via `process.env.PORT`).
+   - Environment variables: Make sure all required env vars are set in the EB console or via Terraform.
+   - Database connection: Verify the `DATABASE_URL` is correct and the database is accessible from the EB instance.
 
-1. **Prisma Client Binary Target:** The Prisma Client uses a native binary for query execution, which is OS-specific. If you generate the client on a different OS (e.g., your Mac or the GitHub Actions runner) and then run on Amazon Linux, you might encounter an error like *"Query engine for current platform \"rhel-openssl-1.0.x\" does not exist"*. To avoid this, specify additional binary targets in your Prisma schema and generate them before deployment. In your `schema.prisma`, in the generator block:
-   ```prisma
-   generator client {
-     provider      = "prisma-client-js"
-     binaryTargets = ["native", "rhel-openssl-1.0.x"]
-   }
-   ```
-   This tells Prisma to include the Linux binary (for Amazon Linux 2, which uses OpenSSL 1.0.x) in addition to the native one for your build machine ([amazon web services - CI/CD deployment of Prisma ORM to Elastic Beanstalk through CodePipeline - Stack Overflow](https://stackoverflow.com/questions/69157189/ci-cd-deployment-of-prisma-orm-to-elastic-beanstalk-through-codepipeline#:~:text=%2Fvar%2Fapp%2Fcurrent%2Fnode_modules%2F.prisma%2Fclient%20Sep%2012%2004%3A59%3A50%20ip,for%20your)). If you plan to use Node 20 on Amazon Linux 2023 (OpenSSL 3), use `"rhel-openssl-3.0.x"` accordingly. For Node 18 on AWS, `rhel-openssl-1.0.x` is the correct target ([Caveats when deploying to AWS platforms | Prisma Documentation](https://www.prisma.io/docs/orm/prisma-client/deployment/caveats-when-deploying-to-aws-platforms#:~:text=which%20is%20only%20required%20locally)). After adding this, run `npx prisma generate` locally or in CI to update the client.
+2. **Prisma issues**: If you encounter errors related to Prisma:
+   - Ensure the Prisma Client is generated: `npx prisma generate` (this should be part of your build or deploy script).
+   - Check database migrations: Ensure the database schema is up-to-date with your Prisma schema.
 
-2. **Generate Prisma Client on EB (or include it):** Ensure that when your app runs on EB, the Prisma Client is generated. There are a couple of strategies:
-   - *Simplest:* Add Prisma to your dependencies (not just devDependencies) so that EB’s `npm install --production` still brings in the Prisma CLI. Also, add an `.npmrc` file at the project root with `unsafe-perm=true` so that the install scripts run with root permissions ([Caveats when deploying to AWS platforms | Prisma Documentation](https://www.prisma.io/docs/orm/prisma-client/deployment/caveats-when-deploying-to-aws-platforms#:~:text=Because%20Beanstalk%20limits%20the%20ability,and%20add%20the%20following%20configuration)). This allows the postinstall hook of `@prisma/client` to run `prisma generate` on the EB instance. The Prisma documentation notes this is necessary because EB’s default user is root and it might skip postinstall without this flag ([Caveats when deploying to AWS platforms | Prisma Documentation](https://www.prisma.io/docs/orm/prisma-client/deployment/caveats-when-deploying-to-aws-platforms#:~:text=When%20deploying%20an%20app%20using,package.json)) ([Caveats when deploying to AWS platforms | Prisma Documentation](https://www.prisma.io/docs/orm/prisma-client/deployment/caveats-when-deploying-to-aws-platforms#:~:text=unsafe)).
-   - *Alternative:* Set the environment variable `NPM_USE_PRODUCTION = false` in EB (as mentioned in Step 7). This will make EB include devDependencies, thereby installing `prisma` (CLI) and running the generate. You should still include the `.npmrc` `unsafe-perm` setting.
-   - *CI-based:* You could generate the Prisma client **during the CI build** (we did `prisma generate` in the GH Actions workflow) and include the generated client files in the deployment package. In that case, ensure you **do not** exclude the `node_modules/.prisma` directory when zipping. However, excluding `node_modules` as a whole (as we did) would remove the generated client. So if you rely on CI to generate and bundle, you would instead zip everything including `node_modules`. This can bloat the package and risk mismatched binaries unless you set the binaryTargets correctly. Given our approach (excluding node_modules), it’s better to let EB handle generation on its side using one of the above methods.
+3. **Google Calendar integration not working**: If the Google Calendar features are not functioning:
+   - Verify the Google Calendar API credentials are correct and have the necessary permissions.
+   - Check the application logs for any errors related to Google Calendar API calls.
 
-In summary, a robust approach is: **Add `.npmrc` with `unsafe-perm=true`, include `prisma` in dependencies or set `NPM_USE_PRODUCTION=false`, and specify the proper `binaryTargets` in schema.prisma**. This ensures that when EB installs your app, it generates the Prisma client compatible with Amazon Linux. This prevents runtime errors like “Prisma Client did not initialize yet” or missing engine files ([Caveats when deploying to AWS platforms | Prisma Documentation](https://www.prisma.io/docs/orm/prisma-client/deployment/caveats-when-deploying-to-aws-platforms#:~:text=Error%3A%20%40prisma%2Fclient%20did%20not%20initialize,yet)) ([amazon web services - CI/CD deployment of Prisma ORM to Elastic Beanstalk through CodePipeline - Stack Overflow](https://stackoverflow.com/questions/69157189/ci-cd-deployment-of-prisma-orm-to-elastic-beanstalk-through-codepipeline#:~:text=%2Fvar%2Fapp%2Fcurrent%2Fnode_modules%2F.prisma%2Fclient%20Sep%2012%2004%3A59%3A50%20ip,for%20your)).
+4. **File uploads to S3 failing**: If your application uses AWS S3 for file uploads and it's failing:
+   - Ensure the S3 bucket exists and the name is correct in your environment variables.
+   - Check the IAM role permissions: The role attached to your EB instances should have permissions to access the S3 bucket.
 
-## Step 9: Run Prisma Migrations on Deploy using EB Hooks
+5. **CORS issues**: If your frontend cannot access the API:
+   - Ensure CORS is configured in your NestJS application to allow requests from your frontend's origin.
 
-After your app is deployed, you need to apply any database schema changes. Prisma offers two main ways: `prisma migrate deploy` (to apply migrations generated by `prisma migrate dev`) or `prisma db push` (to push the schema state without migrations). In a production environment, it's safer to use migrations.
+6. **Health check failures**: If Elastic Beanstalk reports the environment as unhealthy:
+   - Check the health check URL (default is `/health`). Ensure your application responds to this path.
+   - Review the application and server logs for any errors.
 
-We will use Elastic Beanstalk **Platform Hooks** to run the migration after the application is deployed. Platform hooks are scripts you include in your source bundle that EB will execute at certain points in the deployment lifecycle ([Platform hooks - AWS Elastic Beanstalk](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/platforms-linux-extend.hooks.html#:~:text=To%20provide%20platform%20hooks%20that,one%20of%20the%20following%20subdirectories)) ([Platform hooks - AWS Elastic Beanstalk](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/platforms-linux-extend.hooks.html#:~:text=,the%20application%20and%20proxy%20server)).
-
-- **Create a post-deploy hook script:** In your project, create a folder structure `.platform/hooks/postdeploy/`. Inside `postdeploy`, add a script file, e.g. `01_run_migrations.sh`. (The numeric prefix ensures order; EB runs hooks in lexicographical order ([Platform hooks - AWS Elastic Beanstalk](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/platforms-linux-extend.hooks.html#:~:text=Elastic%20Beanstalk%20runs%20files%20in,user.%20The%20current%20working)), so prefix with “01”, “02” if multiple.)
-- **Script content:** For example, `01_run_migrations.sh`:
-  ```bash
-  #!/bin/bash
-  echo "Running Prisma migrations..."
-  npx prisma migrate deploy
-  ```
-  If you prefer `db push` (for a project without migration files), use `npx prisma db push` instead. Ensure the script has executable permissions (`chmod +x`) and is checked into your git repository.
-- **Deploy hooks:** When you deploy via GitHub Actions, the `.platform/hooks/postdeploy` directory and script will be included in the zip. Elastic Beanstalk will detect it and run this script *after the application is deployed and the server is set up* ([Platform hooks - AWS Elastic Beanstalk](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/platforms-linux-extend.hooks.html#:~:text=,the%20application%20and%20proxy%20server)). This is ideal, because the app code is in place and environment variables (like `DATABASE_URL`) are set.
-- **Verify execution:** You can check EB logs if the migration ran. In the EB console, under your environment, go to Logs and request the logs. The platform hooks output may appear in `eb-engine.log` or `web.stdout.log`. Successful migration logs or any errors would be there. If there’s an error (e.g., migration failed), EB might mark the deployment as failed.
-
-**Important considerations:** The hook runs on each deployment. Ensure your migrations are idempotent or that re-running `migrate deploy` on an up-to-date database is harmless (it usually is – Prisma will just report “No pending migrations”). Also, only one instance will run the migration if you have a load-balanced environment: EB designates a “leader” instance for such commands (accessible via the `EB_IS_COMMAND_LEADER=true` env var). So in a multi-instance setup, the migration will only run once, not on every instance.
-
-The use of EB platform hooks is the **recommended way on Amazon Linux 2+** to perform post-deployment tasks like database migration ([Platform hooks - AWS Elastic Beanstalk](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/platforms-linux-extend.hooks.html#:~:text=Platform%20hooks%20aren%27t%20supported%20on,preceding%20Amazon%20Linux%202)). This keeps the logic with your code and under version control, rather than requiring manual intervention.
-
-## Step 10: Add a Health Check Route for the Load Balancer (Optional)
-
-If you use a load-balanced EB environment (or plan to scale to multiple instances), Elastic Beanstalk’s load balancer will perform health checks on your application. By default, the health check is an HTTP GET on the root path `/`. In a NestJS app, hitting `/` with no controller handling it may result in a 404, which would cause the health check to fail. It’s a good practice to have a simple health check endpoint.
-
-- **Implement a health endpoint in NestJS:** For example, you can create a simple controller in NestJS:
-  ```typescript
-  import { Controller, Get } from '@nestjs/common';
-
-  @Controller('health')
-  export class HealthController {
-    @Get()
-    healthCheck() {
-      return { status: 'ok' };
-    }
-  }
-  ```
-  This will respond to GET `/health` with a 200 OK and a JSON payload. Even just returning an empty 200 is fine. Alternatively, NestJS has a Terminus module for health checks, but for our purposes a basic endpoint is enough.
-
-- **Configure EB to use `/health` for health checks:** In a single-instance environment it might not be critical, but in a load-balanced setup, you should tell Elastic Beanstalk to ping `/health` instead of `/`. You can do this in the EB console under environment **Configuration > Health** (set the Health Check URL to `/health`). In Terraform, as shown earlier, you can set:
-  ```hcl
-  setting {
-    namespace = "aws:elasticbeanstalk:environment:process:default"
-    name      = "HealthCheckPath"
-    value     = "/health"
-  }
-  ``` 
-  in the environment resource. This ensures the load balancer targets the correct path for health checks ([amazon web services - How do I launch a Beanstalk environment with HealthChecks as "EC2 and ELB" and health_check_grace_time as 1500 using terraform? - Stack Overflow](https://stackoverflow.com/questions/66689804/how-do-i-launch-a-beanstalk-environment-with-healthchecks-as-ec2-and-elb-and-h#:~:text=Take%20a%20look%20at%20Namespace%3A,aws%3Aelasticbeanstalk%3Aenvironment%3Aprocess%3Adefault%20under%20HealthCheckPath)).
-
-- **Health check grace period:** If your app needs some warm-up time (e.g., run migrations, cache something), you might also configure a health check grace period (time after instance launch during which health checks can fail without replacing the instance). This is available in EB settings (for auto-scaling environments). It can be set via `HealthCheckGracePeriod` option in Terraform or the console. For many NestJS apps, this isn’t necessary unless startup is slow.
-
-By having a dedicated health endpoint, you avoid false alarms in EB console and ensure smooth rolling updates (EB will wait for new instances to report healthy on that endpoint before moving traffic).
-
----
-
-## Conclusion
-
-Following the above steps, you will have a NestJS application successfully running on AWS Elastic Beanstalk with a PostgreSQL RDS database. To summarize:
-
-- We created an EB environment (either via console or Terraform) to host the Node.js app.
-- A PostgreSQL database was set up on RDS, and the app is configured to connect to it via an environment variable.
-- We set up the necessary IAM roles: an instance profile for EB EC2 instances with proper permissions, and an IAM user (with limited permissions) for our CI/CD pipeline.
-- We configured GitHub Actions to automate the build and deployment process, linking our GitHub repo to AWS.
-- The NestJS app was adjusted for the AWS environment: listening on the correct port, Prisma client configured for Amazon Linux, and migrations applied automatically via EB hooks.
-- We also added a health check route to integrate with AWS load balancer health checks.
-
-This setup adheres to best practices by automating infrastructure (Terraform) and deployment (CI/CD), minimizing manual steps for repeatability, and by restricting permissions where possible (least privilege for IAM roles/users) ([Elastic Beanstalk Service roles, instance profiles, and user policies - AWS Elastic Beanstalk](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/concepts-roles.html#:~:text=You%20can%20optionally%20create%20user,Managing%20Elastic%20Beanstalk%20user%20policies)). Always remember to keep secrets out of your code (use EB env vars or AWS Secrets Manager) and monitor your application via AWS CloudWatch logs or EB health metrics.
-
-With everything in place, subsequent updates to your application code can be deployed simply by pushing to your repository, triggering the CI/CD workflow. Your Elastic Beanstalk environment will update and (if configured) roll out updates with zero downtime. Good luck with your deployment!
-
-**Sources:**
-
-- AWS Elastic Beanstalk documentation on environment creation and configuration ([Deploy your NestJS API on AWS Elastic Beanstalk | by Juan P. Lima | Medium](https://medium.com/@juanpireslima/deploy-your-nestjs-api-on-aws-elastic-beanstalk-884e06e3ac5f#:~:text=In%20the%20first%20creation%20step%2C,our%20API%20will%20be%20running)) ([Deploy your NestJS API on AWS Elastic Beanstalk | by Juan P. Lima | Medium](https://medium.com/@juanpireslima/deploy-your-nestjs-api-on-aws-elastic-beanstalk-884e06e3ac5f#:~:text=be%20created%20by%20Elastic%20Beanstalk%2C,Elastic%20Beanstalk%20will%20be%20creating))  
-- AWS RDS integration with Elastic Beanstalk ([Adding a database to your Elastic Beanstalk environment - AWS Elastic Beanstalk](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/using-features.managing.db.html#:~:text=It%20takes%20about%2010%20minutes,through%20the%20following%20environment%20properties)) ([Adding a database to your Elastic Beanstalk environment - AWS Elastic Beanstalk](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/using-features.managing.db.html#:~:text=))  
-- AWS Elastic Beanstalk IAM Roles requirements ([Elastic Beanstalk Service roles, instance profiles, and user policies - AWS Elastic Beanstalk](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/concepts-roles.html#:~:text=If%20your%20AWS%20account%20doesn%E2%80%99t,steps%20to%20create%20your%20environment)) ([Elastic Beanstalk Service roles, instance profiles, and user policies - AWS Elastic Beanstalk](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/concepts-roles.html#:~:text=You%20can%20optionally%20create%20user,Managing%20Elastic%20Beanstalk%20user%20policies))  
-- Prisma documentation on AWS deployment caveats (Prisma client generation and binary targets) ([Caveats when deploying to AWS platforms | Prisma Documentation](https://www.prisma.io/docs/orm/prisma-client/deployment/caveats-when-deploying-to-aws-platforms#:~:text=Because%20Beanstalk%20limits%20the%20ability,and%20add%20the%20following%20configuration)) ([amazon web services - CI/CD deployment of Prisma ORM to Elastic Beanstalk through CodePipeline - Stack Overflow](https://stackoverflow.com/questions/69157189/ci-cd-deployment-of-prisma-orm-to-elastic-beanstalk-through-codepipeline#:~:text=%2Fvar%2Fapp%2Fcurrent%2Fnode_modules%2F.prisma%2Fclient%20Sep%2012%2004%3A59%3A50%20ip,for%20your))  
-- AWS Elastic Beanstalk platform hooks for deployment scripts ([Platform hooks - AWS Elastic Beanstalk](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/platforms-linux-extend.hooks.html#:~:text=,the%20application%20and%20proxy%20server)).
+For any persistent issues, consult the AWS Elastic Beanstalk documentation or seek help from the community forums with specific error messages and logs.
