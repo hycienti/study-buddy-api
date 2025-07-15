@@ -67,18 +67,21 @@ model Availability {
 }
 
 model Session {
-  id          String        @id @default(uuid())
-  buddy       User          @relation("BuddySessions", fields: [buddyId], references: [id])
-  buddyId     String
-  learner     User          @relation("LearnerSessions", fields: [learnerId], references: [id])
-  learnerId   String
-  module      String
-  topic       String
-  date        DateTime
-  meetingLink String
-  status      SessionStatus @default(PENDING)
-  feedback    String?
-  createdAt   DateTime      @default(now())
+  id               String        @id @default(uuid())
+  buddy            User          @relation("BuddySessions", fields: [buddyId], references: [id])
+  buddyId          String
+  learner          User          @relation("LearnerSessions", fields: [learnerId], references: [id])
+  learnerId        String
+  module           String
+  topic            String
+  date             DateTime
+  meetingLink      String
+  status           SessionStatus @default(PENDING)
+  feedback         String?
+  calendarEventId  String?       // Google Calendar Event ID for tracking
+  calendarEventUrl String?       // Direct link to calendar event
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 }
 
 model Ticket {

@@ -95,9 +95,9 @@ export class SessionService {
       throw new Error('Learner not found');
     }
 
-    // Generate enhanced meeting link with participant emails
+    // Generate enhanced meeting link with participant emails and store calendar event details
     let meetingLink = createSessionDto.meetingLink;
-    let eventId = '';
+    let calendarEventId = '';
     let calendarEventUrl = '';
 
     if (!meetingLink) {
@@ -114,7 +114,7 @@ export class SessionService {
           }
         );
         meetingLink = meetDetails.meetLink;
-        eventId = meetDetails.eventId;
+        calendarEventId = meetDetails.eventId;
         calendarEventUrl = meetDetails.calendarEventUrl;
       } catch (error) {
         console.error('Error generating enhanced meet link:', error);
@@ -122,17 +122,27 @@ export class SessionService {
       }
     }
 
-    // Create session
+    // Create session with calendar event tracking (fields will be available after migration)
+    const sessionData: any = {
+      buddyId: createSessionDto.buddyId,
+      learnerId,
+      module: createSessionDto.module,
+      topic: createSessionDto.topic,
+      date: sessionDate,
+      meetingLink,
+      status: SessionStatus.PENDING,
+    };
+
+    // Add calendar tracking fields if available (after migration)
+    if (calendarEventId) {
+      sessionData.calendarEventId = calendarEventId;
+    }
+    if (calendarEventUrl) {
+      sessionData.calendarEventUrl = calendarEventUrl;
+    }
+
     const session = await this.prismaService.session.create({
-      data: {
-        buddyId: createSessionDto.buddyId,
-        learnerId,
-        module: createSessionDto.module,
-        topic: createSessionDto.topic,
-        date: sessionDate,
-        meetingLink,
-        status: SessionStatus.PENDING,
-      },
+      data: sessionData,
       include: {
         buddy: {
           select: { id: true, name: true, email: true, avatarUrl: true },
@@ -366,6 +376,7 @@ export class SessionService {
 
     // Only allow certain updates based on user role and session status
     const updateData: any = {};
+    let calendarUpdateNeeded = false;
 
     if (updateSessionDto.status) {
       // Only buddy can confirm, both can cancel
@@ -373,6 +384,11 @@ export class SessionService {
         throw new Error('Only the study buddy can confirm the session');
       }
       updateData.status = updateSessionDto.status;
+
+      // Handle calendar event based on status change
+      if (updateSessionDto.status === SessionStatus.CANCELLED) {
+        await this.handleSessionCancellation(session);
+      }
     }
 
     if (updateSessionDto.feedback) {
@@ -391,10 +407,24 @@ export class SessionService {
           throw new Error('Session date must be in the future');
         }
         updateData.date = newDate;
+        calendarUpdateNeeded = true;
       }
-      if (updateSessionDto.module) updateData.module = updateSessionDto.module;
-      if (updateSessionDto.topic) updateData.topic = updateSessionDto.topic;
-      if (updateSessionDto.meetingLink) updateData.meetingLink = updateSessionDto.meetingLink;
+      if (updateSessionDto.module) {
+        updateData.module = updateSessionDto.module;
+        calendarUpdateNeeded = true;
+      }
+      if (updateSessionDto.topic) {
+        updateData.topic = updateSessionDto.topic;
+        calendarUpdateNeeded = true;
+      }
+      if (updateSessionDto.meetingLink) {
+        updateData.meetingLink = updateSessionDto.meetingLink;
+      }
+    }
+
+    // Update calendar event if necessary
+    if (calendarUpdateNeeded && (session as any).calendarEventId) {
+      await this.updateCalendarEvent(session, updateData);
     }
 
     const updatedSession = await this.prismaService.session.update({
@@ -427,13 +457,93 @@ export class SessionService {
     return updatedSession;
   }
 
+  // Handle session cancellation with calendar cleanup
+  private async handleSessionCancellation(session: any) {
+    try {
+      // Delete calendar event if it exists
+      if (session.calendarEventId) {
+        await this.googleCalendarService.deleteCalendarEvent(session.calendarEventId);
+        console.log(`Calendar event ${session.calendarEventId} deleted for cancelled session ${session.id}`);
+      }
+    } catch (error) {
+      console.error('Error deleting calendar event for cancelled session:', error);
+      // Don't throw error, just log it since the session cancellation should still proceed
+    }
+  }
+
+  // Update calendar event when session details change
+  private async updateCalendarEvent(session: any, updateData: any) {
+    try {
+      if (!session.calendarEventId) {
+        return;
+      }
+
+      const calendarUpdateData: any = {};
+
+      if (updateData.module || updateData.topic) {
+        calendarUpdateData.summary = `Study Session: ${updateData.module || session.module} - ${updateData.topic || session.topic}`;
+        calendarUpdateData.description = `Study session between ${session.buddy.name} (Buddy) and ${session.learner.name} (Learner)\n\nTopic: ${updateData.topic || session.topic}\nModule: ${updateData.module || session.module}`;
+      }
+
+      if (updateData.date) {
+        calendarUpdateData.startTime = updateData.date;
+        calendarUpdateData.endTime = new Date(updateData.date.getTime() + 60 * 60 * 1000);
+      }
+
+      if (Object.keys(calendarUpdateData).length > 0) {
+        calendarUpdateData.attendees = [session.buddy.email, session.learner.email];
+        
+        await this.googleCalendarService.updateCalendarEvent(
+          session.calendarEventId,
+          calendarUpdateData
+        );
+        
+        console.log(`Calendar event ${session.calendarEventId} updated for session ${session.id}`);
+      }
+    } catch (error) {
+      console.error('Error updating calendar event:', error);
+      // Don't throw error, just log it since the session update should still proceed
+    }
+  }
+
   // Cancel session
   async cancelSession(id: string, userId: string) {
     return this.updateSession(id, userId, { status: SessionStatus.CANCELLED });
   }
 
-  // Auto-expire pending sessions
+  // Auto-expire pending sessions with calendar cleanup
   async expirePendingSessions() {
+    // First get the sessions that will be expired to clean up their calendar events
+    const sessionsToExpire = await this.prismaService.session.findMany({
+      where: {
+        status: SessionStatus.PENDING,
+        date: {
+          lt: new Date(),
+        },
+      },
+      include: {
+        buddy: {
+          select: { email: true, name: true },
+        },
+        learner: {
+          select: { email: true, name: true },
+        },
+      },
+    });
+
+    // Clean up calendar events for expired sessions
+    for (const session of sessionsToExpire) {
+      try {
+        if ((session as any).calendarEventId) {
+          await this.googleCalendarService.deleteCalendarEvent((session as any).calendarEventId);
+          console.log(`Calendar event deleted for expired session ${session.id}`);
+        }
+      } catch (error) {
+        console.error(`Error deleting calendar event for expired session ${session.id}:`, error);
+      }
+    }
+
+    // Update sessions to expired status
     const expiredSessions = await this.prismaService.session.updateMany({
       where: {
         status: SessionStatus.PENDING,
@@ -446,11 +556,46 @@ export class SessionService {
       },
     });
 
+    // Send notifications for expired sessions
+    for (const session of sessionsToExpire) {
+      try {
+        await this.notificationService.notifySessionUpdated({
+          buddyId: session.buddyId,
+          learnerId: session.learnerId,
+          status: SessionStatus.CANCELLED,
+          module: session.module,
+          topic: session.topic,
+          date: session.date,
+        });
+      } catch (error) {
+        console.error(`Error sending expiration notification for session ${session.id}:`, error);
+      }
+    }
+
     return expiredSessions;
   }
 
-  // Auto-complete ongoing sessions
+  // Auto-complete ongoing sessions with notifications
   async completeOngoingSessions() {
+    // First get the sessions that will be completed to send notifications
+    const sessionsToComplete = await this.prismaService.session.findMany({
+      where: {
+        status: SessionStatus.CONFIRMED,
+        date: {
+          lt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+        },
+      },
+      include: {
+        buddy: {
+          select: { email: true, name: true },
+        },
+        learner: {
+          select: { email: true, name: true },
+        },
+      },
+    });
+
+    // Update sessions to completed status
     const completedSessions = await this.prismaService.session.updateMany({
       where: {
         status: SessionStatus.CONFIRMED,
@@ -462,6 +607,28 @@ export class SessionService {
         status: SessionStatus.COMPLETED,
       },
     });
+
+    // Send notifications for completed sessions
+    for (const session of sessionsToComplete) {
+      try {
+        await this.notificationService.notifySessionUpdated({
+          buddyId: session.buddyId,
+          learnerId: session.learnerId,
+          status: SessionStatus.COMPLETED,
+          module: session.module,
+          topic: session.topic,
+          date: session.date,
+        });
+
+        // Send completion emails
+        await this.sendSessionStatusNotification({
+          ...session,
+          status: SessionStatus.COMPLETED,
+        });
+      } catch (error) {
+        console.error(`Error sending completion notification for session ${session.id}:`, error);
+      }
+    }
 
     return completedSessions;
   }
@@ -521,5 +688,15 @@ export class SessionService {
     } catch (error) {
       console.error('Failed to send session status notifications:', error);
     }
+  }
+
+  // TODO: Calendar sync will be available after database migration
+  async syncCalendarEvents() {
+    return {
+      message: 'Calendar sync feature will be available after database migration',
+      totalSessions: 0,
+      syncedSessions: 0,
+      failedSessions: 0,
+    };
   }
 }

@@ -213,4 +213,19 @@ export class SessionController {
       });
     }
   }
+
+  @Post('sync-calendar')
+  @ApiOperation({ summary: 'Sync calendar events for existing sessions (admin/system operation)' })
+  @ApiResponse({ status: 200, description: 'Calendar events synchronized successfully.' })
+  async syncCalendar() {
+    try {
+      const result = await this.sessionService.syncCalendarEvents();
+      return this.responseService.successResponse(result);
+    } catch (error) {
+      return this.responseService.errorResponse({
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        response: error.message,
+      });
+    }
+  }
 }
