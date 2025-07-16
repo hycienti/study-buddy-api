@@ -7,7 +7,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const config = new DocumentBuilder()
-    .setTitle('Ladx API')
+    .setTitle('Buddy API')
     .setDescription('Api to manage everything ')
     .setVersion('1.0')
     // .addTag('Api')
