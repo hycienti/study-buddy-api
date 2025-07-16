@@ -27,6 +27,7 @@ model User {
   emailVerified          Boolean   @default(false)
   phoneVerified          Boolean   @default(false)
   emailVerificationToken String?   @unique
+  passwordResetToken String?   @unique
   passwordResetExpires   DateTime?
   emailVerifiedAt        DateTime?
   phoneVerifiedAt        DateTime?
