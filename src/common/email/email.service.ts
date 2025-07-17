@@ -14,7 +14,7 @@ export class EmailService {
 
     async sendEmail(to: string, subject: string, body: string) {
         return await this.resend.emails.send({
-            from: 'Zentry <tech@zentry.com.ng>',
+            from: 'Studybuddy <tech@zentry.com.ng>',
             to,
             subject,
             html: body,
@@ -197,7 +197,7 @@ export class EmailService {
         <!-- Header -->
         <tr>
             <td style="padding: 30px 20px; background-color: #2c3e50; text-align: center;">
-                <h1 style="color: #ffffff; margin: 0; font-size: 24px;">LADX</h1>
+                <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Study Buddy</h1>
             </td>
         </tr>
 
