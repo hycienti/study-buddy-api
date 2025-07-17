@@ -208,7 +208,7 @@ export class EmailService {
         <tr>
             <td style="padding: 30px 20px; background-color: #ecf0f1; text-align: center;">
                 <p style="color: #666666; font-size: 12px; margin: 0 0 10px 0;">
-                    © 2025 LADX. All rights reserved.
+                    © 2025 Studybuddy. All rights reserved.
                 </p>
                 <p style="color: #666666; font-size: 12px; margin: 0 0 10px 0;">
                     123 Business Street, City, Country
