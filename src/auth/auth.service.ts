@@ -30,7 +30,6 @@ export class AuthService {
         availability: createAuthDto.availabilities
           ? {
               create: createAuthDto.availabilities.map(a => ({
-                id: a.id,
                 dayOfWeek: a.dayOfWeek,
                 startTime: a.startTime,
                 endTime: a.endTime,
