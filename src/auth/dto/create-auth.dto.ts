@@ -3,9 +3,6 @@ import { IsEmail, IsString, MinLength, IsOptional } from 'class-validator';
 import { UserRole } from '@prisma/client';
 
 export class AvailabilityDto {
-    @ApiProperty({ type: String, description: 'Availability ID', example: 'uuid' })
-    @IsString()
-    id: string;
 
     @ApiProperty({ type: Number, description: 'Day of week (0=Sunday, 6=Saturday)', example: 1 })
     dayOfWeek: number;
