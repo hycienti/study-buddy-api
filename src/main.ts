@@ -19,6 +19,21 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1'); // All routes will start with /api/v1
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ extended: true, limit: '50mb' }));
-  await app.listen(process.env.PORT ?? 8080);
+
+  app.enableCors({
+    origin: '*', // Allow all origins for development, restrict in production
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    allowedHeaders: 'Content-Type, Accept, Authorization',
+    credentials: true, // Allow credentials if needed
+  });
+
+  const port = process.env.PORT || 8080; // Use PORT from environment or default to 8080
+  await app.listen(port);
+
+  // Detect if running locally
+  const isLocal = ['localhost', '127.0.0.1'].includes(process.env.HOST || '') || !process.env.HOST;
+
+  const host = isLocal ? 'localhost' : process.env.HOST || '0.0.0.0';
+  console.log(`Server is running on http://${host}:${port}/api/v1`);
 }
 bootstrap();
