@@ -1,19 +1,43 @@
 import { ApiProperty } from '@nestjs/swagger';
-// import { Role } from '@prisma/client';
+import { IsEmail, IsString, IsNotEmpty, MinLength } from 'class-validator';
 
 export class CreateAuthAdminDto {
-    @ApiProperty({ type: String, description: 'User email address' })
+    @ApiProperty({ 
+        type: String, 
+        description: 'Administrator email address',
+        example: 'admin@university.edu',
+        format: 'email'
+    })
+    @IsEmail()
+    @IsNotEmpty()
     email: string;
 
-    @ApiProperty({ type: String, description: 'User password' })
+    @ApiProperty({ 
+        type: String, 
+        description: 'Administrator password',
+        example: 'AdminPassword123!',
+        minLength: 8
+    })
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(8)
     password: string;
 
-    @ApiProperty({ type: String, description: 'User first name' })
+    @ApiProperty({ 
+        type: String, 
+        description: 'Administrator first name',
+        example: 'John'
+    })
+    @IsString()
+    @IsNotEmpty()
     firstName: string;
 
-    @ApiProperty({ type: String, description: 'User last name' })
+    @ApiProperty({ 
+        type: String, 
+        description: 'Administrator last name',
+        example: 'Smith'
+    })
+    @IsString()
+    @IsNotEmpty()
     lastName: string;
-
-    // @ApiProperty({ enum: Role, description: 'Type of user account' })
-    // role: Role;
 }

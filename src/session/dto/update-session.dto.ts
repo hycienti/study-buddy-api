@@ -1,22 +1,24 @@
-import { PartialType } from '@nestjs/mapped-types';
+import { PartialType } from '@nestjs/swagger';
 import { CreateSessionDto } from './create-session.dto';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { SessionStatus } from '@prisma/client';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateSessionDto extends PartialType(CreateSessionDto) {
-  @ApiProperty({
-    description: 'Session status',
+  @ApiPropertyOptional({
+    description: 'Update the session status (only buddy can confirm, both can cancel)',
     enum: SessionStatus,
-    required: false,
+    example: SessionStatus.CONFIRMED,
+    enumName: 'SessionStatus'
   })
   @IsEnum(SessionStatus)
   @IsOptional()
   status?: SessionStatus;
 
-  @ApiProperty({
-    description: 'Session feedback',
-    required: false,
+  @ApiPropertyOptional({
+    description: 'Add feedback after session completion (only available for completed sessions)',
+    example: 'Great session! Very helpful with SQL concepts.',
+    maxLength: 1000
   })
   @IsString()
   @IsOptional()
