@@ -2,9 +2,10 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, 
 import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { AddSkillsDto, RemoveSkillsDto, UpdateSkillsDto } from './dto/skills.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { ResponseService } from 'src/common/response/response.service';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiBody } from '@nestjs/swagger';
 
 @ApiTags('user')
 @Controller('user')
@@ -103,8 +104,11 @@ export class UserController {
   @Post('skills')
   @ApiOperation({ summary: 'Add skills to current user profile' })
   @ApiResponse({ status: 200, description: 'Skills added successfully.' })
+  @ApiResponse({ status: 400, description: 'Invalid input data.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiBody({ type: AddSkillsDto })
   @ApiBearerAuth()
-  async addSkills(@Request() req, @Body() addSkillsDto: { skills: string[] }) {
+  async addSkills(@Request() req, @Body() addSkillsDto: AddSkillsDto) {
     const userId = req.user.id;
     if (!userId) {
       return this.responseService.errorResponse({
@@ -127,8 +131,11 @@ export class UserController {
   @Patch('skills')
   @ApiOperation({ summary: 'Update all skills for current user' })
   @ApiResponse({ status: 200, description: 'Skills updated successfully.' })
+  @ApiResponse({ status: 400, description: 'Invalid input data.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiBody({ type: UpdateSkillsDto })
   @ApiBearerAuth()
-  async updateSkills(@Request() req, @Body() updateSkillsDto: { skills: string[] }) {
+  async updateSkills(@Request() req, @Body() updateSkillsDto: UpdateSkillsDto) {
     const userId = req.user.id;
     if (!userId) {
       return this.responseService.errorResponse({
@@ -151,8 +158,11 @@ export class UserController {
   @Delete('skills')
   @ApiOperation({ summary: 'Remove specific skills from current user profile' })
   @ApiResponse({ status: 200, description: 'Skills removed successfully.' })
+  @ApiResponse({ status: 400, description: 'Invalid input data.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiBody({ type: RemoveSkillsDto })
   @ApiBearerAuth()
-  async removeSkills(@Request() req, @Body() removeSkillsDto: { skills: string[] }) {
+  async removeSkills(@Request() req, @Body() removeSkillsDto: RemoveSkillsDto) {
     const userId = req.user.id;
     if (!userId) {
       return this.responseService.errorResponse({
