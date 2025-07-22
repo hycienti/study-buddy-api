@@ -112,7 +112,6 @@ export class StudyBuddyService {
 
     let processedBuddies = buddies.map(buddy => ({
       ...buddy,
-      password: undefined,
       completedSessions: (buddy as any)._count.sessionsAsBuddy,
     }));
 
@@ -173,7 +172,6 @@ export class StudyBuddyService {
 
     return {
       ...buddy,
-      password: undefined,
       completedSessions: (buddy as any)._count.sessionsAsBuddy,
     };
   }
@@ -304,7 +302,6 @@ export class StudyBuddyService {
     return {
       buddies: buddies.map(buddy => ({
         ...buddy,
-        password: undefined,
         completedSessions: (buddy as any)._count.sessionsAsBuddy,
       })),
       pagination: {

@@ -36,7 +36,7 @@ export class UserController {
         response: 'User not found'
       });
     }
-    return this.responseService.successResponse({ ...user, password: undefined });
+    return this.responseService.successResponse(user);
   }
 
   @Get('upcoming-sessions')
@@ -118,7 +118,7 @@ export class UserController {
     }
     
     try {
-      const updatedUser = await this.userService.addSkills(userId, addSkillsDto.skills);
+      const updatedUser = await this.userService.addSkills(userId, addSkillsDto.skills, req.user.id);
       return this.responseService.successResponse(updatedUser);
     } catch (error) {
       return this.responseService.errorResponse({
@@ -216,8 +216,8 @@ export class UserController {
   @ApiOperation({ summary: 'Update a user' })
   @ApiResponse({ status: 200, description: 'User updated successfully.' })
   @ApiBearerAuth()
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(id, updateUserDto);
+  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto, @Request() req) {
+    return this.userService.update(id, updateUserDto, req.user.id);
   }
 
   @Delete(':id')

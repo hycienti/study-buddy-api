@@ -11,49 +11,23 @@ import { UserStatus } from '@prisma/client';
 export class UserService {
   constructor(private readonly prismaService: PrismaService) { }
 
-  findOne(id: string) {
-    return this.prismaService.user.findUnique({
+  async findOne(id: string) {
+    const user = await this.prismaService.user.findUnique({
       where: { id },
-      include: {
-        availability: true,
-        sessionsAsBuddy: {
-          include: {
-            learner: { select: { id: true, name: true, avatarUrl: true } }
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-        },
-        sessionsAsLearner: {
-          include: {
-            buddy: { select: { id: true, name: true, avatarUrl: true } }
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-        },
-        ticketsCreated: {
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-        },
-        ticketsClaimed: {
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-        },
-        _count: {
-          select: {
-            sessionsAsBuddy: true,
-            sessionsAsLearner: true,
-            ticketsCreated: true,
-            ticketsClaimed: true,
-          },
-        },
-      }
     });
+    if (!user) throw new Error('User not found');
+    return user;
   }
 
-  update(id: string, updateUserDto: UpdateUserDto) {
+  async update(id: string, updateUserDto: UpdateUserDto, userId: string) {
+    // Check if the user trying to update is the same user
+    if (id !== userId) {
+      throw new Error('Unauthorized to update this user');
+    }
+
     return this.prismaService.user.update({
       where: { id },
-      data: updateUserDto
+      data: updateUserDto,
     });
   }
 
@@ -69,7 +43,10 @@ export class UserService {
   }
 
   async changeAccountStatus(userId: string, status: UserStatus, currentUserID: string) {
-    const user = await this.prismaService.user.findUnique({ where: { id: userId } });
+    const user = await this.prismaService.user.findUnique({ 
+      where: { id: userId },
+      select: { id: true, status: true } // Only select what we need
+    });
     if (!user) throw new Error('User not found');
     
     if (user.status === status) {
@@ -83,7 +60,7 @@ export class UserService {
     
     return this.prismaService.user.update({
       where: { id: userId },
-      data: { status }
+      data: { status },
     });
   }
 
@@ -161,28 +138,19 @@ export class UserService {
   }
 
   // Skills management methods
-  async addSkills(userId: string, skills: string[]) {
-    const user = await this.prismaService.user.findUnique({
-      where: { id: userId },
-      select: { skills: true }
-    });
-
-    if (!user) {
-      throw new Error('User not found');
+  async addSkills(userId: string, skills: string[], currentUserId: string) {
+    if (currentUserId !== userId) {
+      throw new Error('Unauthorized to add skills');
     }
-
-    // Merge new skills with existing ones, removing duplicates
-    const existingSkills = user.skills || [];
-    const newSkills = [...new Set([...existingSkills, ...skills])];
-
+    
+    const user = await this.prismaService.user.findUnique({
+      where: { id: userId }
+    });
+    if (!user) throw new Error('User not found');
+    
     return this.prismaService.user.update({
       where: { id: userId },
-      data: { skills: newSkills },
-      select: {
-        id: true,
-        name: true,
-        skills: true,
-      }
+      data: { skills: [...user.skills, ...skills] },
     });
   }
 
@@ -203,17 +171,13 @@ export class UserService {
     return this.prismaService.user.update({
       where: { id: userId },
       data: { skills: updatedSkills },
-      select: {
-        id: true,
-        name: true,
-        skills: true,
-      }
     });
   }
 
   async updateSkills(userId: string, skills: string[]) {
     const user = await this.prismaService.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
+      select: { id: true } // Only select what we need
     });
 
     if (!user) {
@@ -226,11 +190,6 @@ export class UserService {
     return this.prismaService.user.update({
       where: { id: userId },
       data: { skills: uniqueSkills },
-      select: {
-        id: true,
-        name: true,
-        skills: true,
-      }
     });
   }
 

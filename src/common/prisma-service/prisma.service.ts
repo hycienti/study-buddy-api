@@ -5,6 +5,18 @@ import { PrismaClient } from '@prisma/client'
 export class PrismaService extends PrismaClient
     implements OnModuleInit {
 
+    constructor() {
+        super({
+            omit: {
+                user: {
+                    password: true,
+                    emailVerificationToken: true,
+                    passwordResetToken: true,
+                },
+            },
+        });
+    }
+
     async onModuleInit() {
         await this.$connect();
     }

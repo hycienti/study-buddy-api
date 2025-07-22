@@ -74,6 +74,7 @@ export class SessionService {
         role: { in: [UserRole.BUDDY, UserRole.BOTH] },
         status: UserStatus.ACTIVE,
       },
+      select: { id: true, email: true, name: true, role: true, status: true }
     });
 
     if (!buddy) {
@@ -89,6 +90,7 @@ export class SessionService {
     // Check if learner exists
     const learner = await this.prismaService.user.findUnique({
       where: { id: learnerId },
+      select: { id: true, email: true, name: true }
     });
 
     if (!learner) {

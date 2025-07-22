@@ -64,7 +64,14 @@ export class AuthService {
   }
 
   async resendConfirmationCode(email) {
-    const user = await this.prismaService.user.findUnique({ where: { email } });
+    const user = await this.prismaService.user.findUnique({ 
+      where: { email },
+      select: { 
+        id: true, 
+        email: true, 
+        emailVerificationToken: true 
+      }
+    });
     if (!user) throw new NotFoundException('User not found.');
     const sentEmail = await this.emailService.sendVerificationEmail(user.email, user.emailVerificationToken as string);
     if (sentEmail) {
@@ -74,7 +81,18 @@ export class AuthService {
   }
 
   async login(email, password) {
-    const user = await this.prismaService.user.findUnique({ where: { email } });
+    const user = await this.prismaService.user.findUnique({ 
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        password: true,
+        emailVerified: true,
+        status: true,
+        role: true
+      }
+    });
     if (!user || !(await bcrypt.compare(password, user.password)))
       throw new BadRequestException('Invalid credentials.');
     if (!user.emailVerified) throw new BadRequestException('Email not verified.');
@@ -111,6 +129,12 @@ export class AuthService {
         passwordResetExpires: {
           gt: new Date()
         }
+      },
+      select: {
+        id: true,
+        email: true,
+        passwordResetToken: true,
+        passwordResetExpires: true
       }
     });
     if (!user) throw new BadRequestException('Invalid or expired password reset token.');
