@@ -40,7 +40,7 @@ export class AuthService {
     });
     const sentEmail = await this.emailService.sendVerificationEmail(user.email, emailVerificationToken);
     console.log('Email sent:', sentEmail);
-    return user;
+    return createAuthDto;
   }
 
   async confirmRegistration(email, token) {
