@@ -14,8 +14,7 @@ export class EmailService {
 
     async sendEmail(to: string, subject: string, body: string) {
         return await this.resend.emails.send({
-            // from: 'Studybuddy <tech@zentry.com.ng>',
-            from: 'Studybuddy <onboarding@resend.dev>',
+            from: 'Studybuddy <tech@zentry.com.ng>',
             to,
             subject,
             html: body,
