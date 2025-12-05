@@ -14,7 +14,7 @@ export class EmailService {
 
     async sendEmail(to: string, subject: string, body: string) {
         return await this.resend.emails.send({
-            from: 'Studybuddy <tech@zentry.com.ng>',
+            from: 'AluPeerPal <tech@zentry.com.ng>',
             to,
             subject,
             html: body,
@@ -197,7 +197,7 @@ export class EmailService {
         <!-- Header -->
         <tr>
             <td style="padding: 30px 20px; background-color: #2c3e50; text-align: center;">
-                <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Study Buddy</h1>
+                <h1 style="color: #ffffff; margin: 0; font-size: 24px;">ALU PeerPal</h1>
             </td>
         </tr>
 
@@ -208,7 +208,7 @@ export class EmailService {
         <tr>
             <td style="padding: 30px 20px; background-color: #ecf0f1; text-align: center;">
                 <p style="color: #666666; font-size: 12px; margin: 0 0 10px 0;">
-                    © 2025 Studybuddy. All rights reserved.
+                    © 2025 PeerPal. All rights reserved.
                 </p>
                 <p style="color: #666666; font-size: 12px; margin: 0 0 10px 0;">
                     123 Business Street, City, Country
